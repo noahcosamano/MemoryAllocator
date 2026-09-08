@@ -1,29 +1,30 @@
 #include "header.h"
 #include <windows.h>
 #include <stdio.h>
+#include <stdbool.h>
 
-#define ARENA_SIZE 40960 // 10 pages of memory (10 * 4096B = 40,960B = 40.96Kb)
+#define ARENA_SIZE 40960 // 10 pages of memory (40,960 bytes)
 
 Header* arena = NULL;
 
 Header* CreateArena() {
-    Header* arena = (Header*)VirtualAlloc(
+    Header* newArena = (Header*)VirtualAlloc(
         NULL,
         ARENA_SIZE,
         MEM_RESERVE | MEM_COMMIT,
         PAGE_READWRITE
     );
 
-    if (arena == NULL) return NULL;
+    if (newArena == NULL) return NULL;
 
-    arena->size = ARENA_SIZE - sizeof(Header);
-    arena->isFree = true;
-    arena->next = NULL;
+    newArena->size = ARENA_SIZE - sizeof(Header);
+    newArena->isFree = true;
+    newArena->next = NULL;
 
-    return arena;
+    return newArena;
 }
 
-void* AllocateMem(size_t bytes) {
+void* nalloc(size_t bytes) {
     if (bytes == 0) return NULL;
     
     if (arena == NULL) {
@@ -39,24 +40,58 @@ void* AllocateMem(size_t bytes) {
     }
 
     Header* currentBlock = arena;
-
-    if (currentBlock->isFree && currentBlock->size >= bytes) {
-        currentBlock->isFree = false;
-
-        printf("Successfully allocated requested memory (%zu bytes) at payload address %p\n", 
-               bytes, (void*)(currentBlock + 1));
-
-        void* payloadStartAddr = (void*)(currentBlock + 1);
-
-        currentBlock->next = payloadStartAddr + bytes;
-
-        printf("Next free block is at address %p\n", currentBlock->next);
-
-        return payloadStartAddr;
+    while (currentBlock != NULL) {
+        if (currentBlock->isFree && currentBlock->size >= bytes) {
+            break;
+        }
+        currentBlock = currentBlock->next;
     }
+
+    if (currentBlock == NULL) {
+        printf("Out of memory in arena.\n");
+        return NULL;
+    }
+
+    if (currentBlock->size >= bytes + sizeof(Header) + 16) {
+        size_t remainingSize = currentBlock->size - bytes - sizeof(Header);
+
+        Header* nextFreeBlock = (Header*)((char*)(currentBlock + 1) + bytes);
+
+        nextFreeBlock->size = remainingSize;
+        nextFreeBlock->isFree = true;
+        nextFreeBlock->next = currentBlock->next;
+
+        currentBlock->size = bytes;
+        currentBlock->isFree = false;
+        currentBlock->next = nextFreeBlock;
+    } else {
+        currentBlock->isFree = false;
+    }
+
+    void* payloadStartAddr = (void*)(currentBlock + 1);
+
+    printf("Successfully allocated requested memory (%zu bytes) at payload address %p\n", 
+           bytes, payloadStartAddr);
+
+    if (currentBlock->next) {
+        printf("Next free block is at address %p and contains %zu bytes\n", 
+               (void*)currentBlock->next, currentBlock->next->size);
+    }
+
+    return payloadStartAddr;
+}
+
+/*
+1.) Create another arena, and concatenate them if current arena runs out of memory.
+2.) Free memory using nfree so that block of memory can be reused.
+*/
+
+int nfree() {
+    return 0;
 }
 
 int main() {
-    AllocateMem(100);
-    return 1;
+    nalloc(100);
+    nalloc(1500);
+    return 0;
 }
