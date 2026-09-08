@@ -3,43 +3,43 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define ARENA_SIZE 40960 // 10 pages of memory (40,960 bytes)
+#define RESERVE_SIZE 40960 // 10 pages of memory (40,960 bytes)
 
-Header* arena = NULL;
+Header* reserve = NULL;
 
-Header* CreateArena() {
-    Header* newArena = (Header*)VirtualAlloc(
+Header* CreateReserve() {
+    Header* newReserve = (Header*)VirtualAlloc(
         NULL,
-        ARENA_SIZE,
+        RESERVE_SIZE,
         MEM_RESERVE | MEM_COMMIT,
         PAGE_READWRITE
     );
 
-    if (newArena == NULL) return NULL;
+    if (newReserve == NULL) return NULL;
 
-    newArena->size = ARENA_SIZE - sizeof(Header);
-    newArena->isFree = true;
-    newArena->next = NULL;
+    newReserve->size = RESERVE_SIZE - sizeof(Header);
+    newReserve->isFree = true;
+    newReserve->next = NULL;
 
-    return newArena;
+    return newReserve;
 }
 
 void* nalloc(size_t bytes) {
     if (bytes == 0) return NULL;
     
-    if (arena == NULL) {
-        printf("No free block, allocating arena.\n");
-        arena = CreateArena();
+    if (reserve == NULL) {
+        printf("No free block, creating reserve.\n");
+        reserve = CreateReserve();
 
-        if (arena == NULL) {
-            printf("Failed to allocate arena.\n");
+        if (reserve == NULL) {
+            printf("Failed to create reserve.\n");
             return NULL;
         }
 
-        printf("Successfully allocated arena of %d bytes at address %p\n", ARENA_SIZE, (void*)arena);
+        printf("Successfully created reserve of %d bytes at address %p\n", RESERVE_SIZE, (void*)reserve);
     }
 
-    Header* currentBlock = arena;
+    Header* currentBlock = reserve;
     while (currentBlock != NULL) {
         if (currentBlock->isFree && currentBlock->size >= bytes) {
             break;
@@ -48,7 +48,7 @@ void* nalloc(size_t bytes) {
     }
 
     if (currentBlock == NULL) {
-        printf("Out of memory in arena.\n");
+        printf("No memory left in reserve.\n");
         return NULL;
     }
 
@@ -82,8 +82,11 @@ void* nalloc(size_t bytes) {
 }
 
 /*
-1.) Create another arena, and concatenate them if current arena runs out of memory.
+1.) Create another reserve, and concatenate them if current reserve runs out of memory.
 2.) Free memory using nfree so that block of memory can be reused.
+3.) Verify byte-by-byte that memory is being freed/overwrite when using nfree.
+4.) When nfree is called, concatenate any free neighbor blocks together.
+5.) Create nrealloc function to reallocate more or less memory to pre-existing memory chunk.
 */
 
 int nfree(void* payloadStartAddr) {
@@ -103,6 +106,8 @@ int main() {
     printf("Number: %d, Address: %p\n", *number, number);
 
     int isFree = nfree(number);
+
+    char* letter2 = nalloc(sizeof(char) * 2);
 
     return 0;
 }
