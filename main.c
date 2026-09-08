@@ -46,7 +46,13 @@ void* AllocateMem(size_t bytes) {
         printf("Successfully allocated requested memory (%zu bytes) at payload address %p\n", 
                bytes, (void*)(currentBlock + 1));
 
-        return (void*)(currentBlock + 1);
+        void* payloadStartAddr = (void*)(currentBlock + 1);
+
+        currentBlock->next = payloadStartAddr + bytes;
+
+        printf("Next free block is at address %p\n", currentBlock->next);
+
+        return payloadStartAddr;
     }
 }
 
