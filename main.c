@@ -86,12 +86,23 @@ void* nalloc(size_t bytes) {
 2.) Free memory using nfree so that block of memory can be reused.
 */
 
-int nfree() {
-    return 0;
+int nfree(void* payloadStartAddr) {
+    Header* payloadHeader = ((Header*)payloadStartAddr) - 1;
+    printf("Payload header sits at address %p\n", (void*)payloadHeader);
+    payloadHeader->isFree = true;
+    return 1;
 }
 
 int main() {
-    nalloc(100);
-    nalloc(1500);
+    int* number = nalloc(sizeof(int));
+    int* number2 = nalloc(sizeof(int) *2);
+    char* letter = nalloc(sizeof(char));
+
+    *number = 5;
+
+    printf("Number: %d, Address: %p\n", *number, number);
+
+    int isFree = nfree(number);
+
     return 0;
 }
