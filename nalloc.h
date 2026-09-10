@@ -7,9 +7,9 @@
 
 Header* reserve = NULL;
 
-Header* CreateReserve() {
+Header* CreateReserve(void* memAddr) {
     Header* newReserve = (Header*)VirtualAlloc(
-        NULL,
+        memAddr,
         RESERVE_SIZE,
         MEM_RESERVE | MEM_COMMIT,
         PAGE_READWRITE
@@ -29,7 +29,7 @@ void* nalloc(size_t bytes) {
     
     if (reserve == NULL) {
         printf("No free block, creating reserve.\n");
-        reserve = CreateReserve();
+        reserve = CreateReserve(NULL);
 
         if (reserve == NULL) {
             printf("Failed to create reserve.\n");
@@ -49,6 +49,9 @@ void* nalloc(size_t bytes) {
 
     if (currentBlock == NULL) {
         printf("No memory left in reserve.\n");
+        Header* newReserve = CreateReserve((void*)reserve + RESERVE_SIZE);
+        printf("Old reserve start addr: %p, size: %d, end addr: %p\n", (void*)reserve, RESERVE_SIZE, (void*)reserve + RESERVE_SIZE);
+        printf("Creating new reserve at address %p\n", (void*)reserve + RESERVE_SIZE);
         return NULL;
     }
 
